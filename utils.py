@@ -8,7 +8,6 @@ from datetime import datetime
 
 #TODO: probably seperate the sort types into different files.
 #TODO: yea probably keep backup() here, make a new createtempfolder(), then move sorting algos to like sort.py or smthn
-#TODO: seperate createtempfolder() PLEASE
 #TODO: add some error handling or get taken out like a dying animal
 #TODO: run through and clean up all functions before publishing
 #TODO: Add option to sort by size
@@ -48,6 +47,34 @@ def backup(originalDirectory, backupDirectory):
         return 0
     except:
         return -1
+    
+def createTempDir(directory, window):
+    """
+    creates a temporary directory to move files/folders into to avoid conflicts where folders already exist
+
+    :param directory:    the directory where the tempDir should be created.
+    :param window:    the window to write text to on screen.
+
+    :var tempDirName:    a unique folder name `temp_` followed by a 32 character uuid that HOPEFULLY the user doesn't already have
+    :var needTempDir:    set to false when the tempDirName is confirmed to be unique, in case the user already has a folder named that
+
+    :return tempDir:    returns a path to the tempDir so the sorting algorithm can use it to sort efficiently
+
+    :TODO:    add error handling so that if there's a problem you aren't just returning a non-functional path
+    """
+    window.clear()
+    window.addstr("Creating Temporary Directory...")
+    window.refresh()
+
+    while True:
+        tempDirName = f"temp_{uuid.uuid4().hex}"
+        tempDir = directory / tempDirName
+        if not tempDir.exists():
+            break
+    # create the temporary directory
+    tempDir.mkdir()
+
+    return tempDir
 
 def sortDate(directory, window):
     """
@@ -60,7 +87,6 @@ def sortDate(directory, window):
     :TODO:    also maybe give users the option to sort only loose files or all files, to preserve folders? MAKE CLEAR IN DOCUMENTATION
 
     :var selected:    the option from the sorting criteria selected. 0 = YYYY, 1 = YYYY-MM, 2 = YYYY-MM-DD, 3 = Exit. Determines sub-directory depth.
-    :var tempDir:    a temporary directory generated at runtime named temp_[32 char uuid] used to prevent attempted creation of duplicate folders.
     :var item:    the thing currently being sorted!
     :var file_date:    the last modified date of the file, got using datetime.
 
@@ -110,14 +136,7 @@ def sortDate(directory, window):
     window.refresh()
 
     # create a temp directory to avoid existing folder conflicts
-    needTempDir = True
-    while needTempDir == True:
-        tempDirName = f"temp_{uuid.uuid4().hex[:32]}"
-        tempDir = directory / tempDirName
-        if not tempDir.exists():
-            needTempDir = False
-    # create the temporary directory
-    tempDir.mkdir()
+    tempDir = createTempDir(directory, window)
 
     # move everything from directory -> tempDir
     for item in directory.iterdir():
@@ -154,7 +173,6 @@ def sortFiletype(directory, window):
     :TODO:    maybe "window" should be moved from here and the option select should be done in the def sort() function at the bottom of utils.py
     :TODO:    also maybe give users the option to sort only loose files or all files, to preserve folders? MAKE CLEAR IN DOCUMENTATION
     
-    :var tempDir:    this solves a potential problem where directories already exist and have things in them and they don't get sorted properly. to be honest it might not be necessary, investigate.
     :var fileExtension:    gets the item suffix using pathlib, or if that returns "None" checks for the last "." (solves an issue with files like ".txt"), or sets to "OTHER"
 
     :return 0:    success!
@@ -169,14 +187,7 @@ def sortFiletype(directory, window):
     window.refresh()
 
     # create a temp directory to avoid existing folder conflicts
-    needTempDir = True
-    while needTempDir == True:
-        tempDirName = f"temp_{uuid.uuid4().hex[:32]}"
-        tempDir = directory / tempDirName
-        if not tempDir.exists():
-            needTempDir = False
-    # create the temporary directory
-    tempDir.mkdir()
+    tempDir = createTempDir(directory, window)
 
     # move everything from directory -> tempDir
     for item in directory.iterdir():
@@ -198,6 +209,7 @@ def sortFiletype(directory, window):
     # delete tempDir and its leftover content (empty folders) when done
     shutil.rmtree(tempDir)
         
+    window.clear()
     window.addstr("\nSorting complete. Press any key to return to the main menu.")
     window.refresh()
     window.getch()
@@ -213,7 +225,6 @@ def sortAlphabetical(directory, window):
     :TODO:    maybe "window" should be moved from here and the option select should be done in the def sort() function at the bottom of utils.py
     
     :var alpahbetFolder:    a post-sort directory titled a single letter "A", "B", "C", etc. where files are moved into based on name[0] (their first letter)
-    :var tempDir:    a temporary directory generated at runtime named temp_[32 char uuid] used to prevent attempted creation of duplicate folders (cant move folder "D" into itself)
     :var item:    the file/subdirectory currently being sorted
 
     :return 0:    success!
@@ -266,6 +277,7 @@ def sortAlphabetical(directory, window):
         window.refresh()
 
         for item in directory.rglob('*'):  # rglob to include subdirectories
+            #BUG: things that start with a non-letter (such as ".txt") will not be sorted
             if item.is_file():
                 firstLetter = item.name[0].upper()
                 alphabetFolder = directory / firstLetter
@@ -283,14 +295,7 @@ def sortAlphabetical(directory, window):
         window.refresh()
 
         # tempDir again...
-        # TODO: defo seperate this
-        needTempDir = True
-        while needTempDir == True:
-            tempDirName = f"temp_{uuid.uuid4().hex[:32]}"
-            tempDir = directory / tempDirName
-            if not tempDir.exists():
-                needTempDir = False
-        tempDir.mkdir()
+        tempDir = createTempDir(directory, window)
 
         # move everything into the tempDir to prevent existing folder conflicts
         for item in directory.iterdir():
@@ -314,6 +319,7 @@ def sortAlphabetical(directory, window):
         # now get rid of tempDir, again...
         shutil.rmtree(tempDir)
 
+    window.clear()
     window.addstr("\nSorting complete. Press any key to return to the main menu.")
     window.refresh()
     window.getch()
